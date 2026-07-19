@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SOC Dashboard - TLS SNI Monitor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #0d1117;
+            color: #c9d1d9;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+    </style>
+</head>
+<body class="p-6">
+
+    <div class="max-w-7xl mx-auto flex justify-between items-center border-b border-gray-800 pb-4 mb-6">
+        <div class="flex items-center space-x-3">
+            <i class="fa-solid fa-shield-halved text-teal-400 text-3xl"></i>
+            <h1 class="text-2xl font-bold tracking-wider text-teal-300">ANOMALY DETECTOR SYSTEM</h1>
+        </div>
+        <div class="flex items-center space-x-2 bg-gray-900 px-3 py-1.5 rounded-full border border-gray-800">
+            <span class="w-2.5 h-2.5 bg-green-500 rounded-full animate-ping"></span>
+            <span class="text-xs font-semibold text-gray-400">Live Monitoring</span>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <div class="lg:col-span-2 space-y-6">
+            
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-gray-900 p-5 rounded-lg border border-gray-800 shadow-md">
+                    <p class="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">Tổng Số Kết Nối TLS</p>
+                    <p id="total-reqs" class="text-4xl font-extrabold text-teal-400">{{ total_reqs }}</p>
+                </div>
+                <div class="bg-gray-900 p-5 rounded-lg border border-gray-800 shadow-md">
+                    <p class="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">Tổng Số Cảnh Báo (Phát hiện)</p>
+                    <p id="total-warnings" class="text-4xl font-extrabold text-red-500">{{ total_warnings }}</p>
+                </div>
+            </div>
+
+            <div class="bg-gray-900 rounded-lg border border-gray-800 shadow-md overflow-hidden">
+                <div class="p-4 bg-gray-850 border-b border-gray-800 flex justify-between items-center">
+                    <h2 class="text-base font-bold text-gray-200 flex items-center space-x-2">
+                        <i class="fa-solid fa-clock-rotate-left text-teal-400"></i>
+                        <span>Nhật Ký Kết Nối TLS (Cập nhật liên tục)</span>
+                    </h2>
+                </div>
+                <div class="overflow-x-auto max-h-[500px]">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-black/30 border-b border-gray-800 text-xs font-bold text-gray-400 uppercase">
+                                <th class="p-4 w-1/4">Thời gian</th>
+                                <th class="p-4 w-1/4">IP Nguồn</th>
+                                <th class="p-4 w-2/5">Tên Miền</th>
+                                <th class="p-4 w-1/6 text-center">Trạng Thái</th>
+                            </tr>
+                        </thead>
+                        <tbody id="log-table" class="text-sm">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="space-y-6">
+            
+            <div class="bg-gray-900 p-5 rounded-lg border border-gray-800 shadow-md">
+                <h2 class="text-base font-bold text-gray-200 mb-4 flex items-center space-x-2">
+                    <i class="fa-solid fa-ban text-red-500"></i>
+                    <span>Thêm Trang Cảnh Báo</span>
+                </h2>
+                <form action="/blacklist/add" method="POST" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Tên miền (Domain)</label>
+                        <input type="text" name="domain" placeholder="Ví dụ: youtube.com" required 
+                            class="w-full bg-gray-950 border border-gray-800 rounded px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-teal-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Lý do cảnh báo</label>
+                        <input type="text" name="reason" placeholder="Ví dụ: Trang web giải trí trong giờ học" required 
+                            class="w-full bg-gray-950 border border-gray-800 rounded px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-teal-500">
+                    </div>
+                    <button type="submit" class="w-full bg-teal-600 hover:bg-teal-500 transition text-gray-900 font-bold py-2 rounded text-sm shadow">
+                        Kích Hoạt Cảnh Báo
+                    </button>
+                </form>
+            </div>
+
+            <div class="bg-gray-900 p-5 rounded-lg border border-gray-800 shadow-md">
+                <h2 class="text-base font-bold text-gray-200 mb-3 flex items-center space-x-2">
+                    <i class="fa-solid fa-list-ul text-teal-400"></i>
+                    <span>Danh sách đang Cảnh báo</span>
+                </h2>
+                <div class="max-h-[300px] overflow-y-auto space-y-2 pr-1">
+                    {% for item in blacklist %}
+                    <div class="flex justify-between items-center bg-gray-950 p-2.5 rounded border border-gray-850">
+                        <div class="truncate pr-2">
+                            <p class="text-xs font-bold text-red-400 truncate">{{ item.domain }}</p>
+                            <p class="text-[10px] text-gray-500 truncate">{{ item.reason }}</p>
+                        </div>
+                        <a href="/blacklist/delete/{{ item.domain }}" class="text-gray-500 hover:text-red-500 transition px-1.5">
+                            <i class="fa-solid fa-times text-sm"></i>
+                        </a>
+                    </div>
+                    {% else %}
+                    <p class="text-xs text-gray-600 text-center py-4">Chưa cấu hình trang nào.</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        function loadLogs() {
+            fetch('/api/logs')
+                .then(response => response.json())
+                .then(data => {
+                    const tbody = document.getElementById('log-table');
+                    tbody.innerHTML = '';
+                    
+                    let totalReqs = 0;
+                    let totalWarnings = 0;
+
+                    data.forEach(log => {
+                        totalReqs++;
+                        if (log.is_blocked === 1) totalWarnings++;
+
+                        const tr = document.createElement('tr');
+                        tr.className = "border-b border-gray-850 hover:bg-gray-850/30 transition";
+                        
+                        // Đổi màu sắc hiển thị Badge
+                        let statusBadge = '';
+                        if (log.is_blocked === 1) {
+                            statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-red-950/80 text-red-400 border border-red-900">WARNING</span>`;
+                        } else {
+                            statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-green-950/80 text-green-400 border border-green-900">NORMAL</span>`;
+                        }
+
+                        tr.innerHTML = `
+                            <td class="p-4 text-xs font-mono text-gray-500">${log.timestamp}</td>
+                            <td class="p-4 font-semibold text-gray-400">${log.client_ip}</td>
+                            <td class="p-4 font-mono text-teal-300 truncate max-w-[280px]" title="${log.domain}">${log.domain}</td>
+                            <td class="p-4 text-center">${statusBadge}</td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                });
+        }
+
+        // Tự động tải lại log sau mỗi 2 giây
+        setInterval(loadLogs, 2000);
+        window.onload = loadLogs;
+    </script>
+</body>
+</html>
